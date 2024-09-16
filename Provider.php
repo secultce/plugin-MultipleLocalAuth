@@ -151,7 +151,7 @@ class Provider extends \MapasCulturais\AuthProvider {
             $this->json(array("passwordRules"=>$passwordRules));
         });
 
-        $app->hook('GET(auth.confirma-email)', function () use($app){
+        $app->hook('GET(auth.confirma-email)', function () use($app) {
 
             $app = App::i();
             $token = filter_var($app->request->get('token'), FILTER_SANITIZE_STRING);
@@ -159,9 +159,8 @@ class Provider extends \MapasCulturais\AuthProvider {
             $usermeta = $app->repo("UserMeta")->findOneBy(array('key' => Provider::$tokenVerifyAccountMetadata, 'value' => $token));
 
             if (!$usermeta) {
-               $errorMsg = i::__('Token inválidos', 'multipleLocal');   
-            //    $app->auth->render('confirm-email',['msg'=>'TEM MSG NAO']);                         
-               $this->render('confirm-email',['msg'=>$errorMsg]);   
+               $errorMsg = i::__('Token inválidos', 'multipleLocal');
+               $this->render('confirm-email',['msg'=>$errorMsg]);
             }
 
             $user = $usermeta->owner;
@@ -377,7 +376,7 @@ class Provider extends \MapasCulturais\AuthProvider {
         
         $app->hook('POST(auth.recover-resetform)', function () use($app){
         
-            if ($app->auth->dorecover()) {
+            if ($app->auth->doRecover()) {
                 $this->error_msg = i::__('Senha alterada com sucesso. Agora você pode fazer login', 'multipleLocal');
                 $app->auth->renderForm($this);
             } else {
@@ -665,23 +664,24 @@ class Provider extends \MapasCulturais\AuthProvider {
         ]);
     }
     
-    function dorecover() {
+    public function doRecover(): bool
+    {
         $app = App::i();
         $email = filter_var($app->request->post('email'), FILTER_SANITIZE_STRING);
         $pass = filter_var($app->request->post('password'), FILTER_SANITIZE_STRING);
         $pass_v = filter_var($app->request->post('confirm_password'), FILTER_SANITIZE_STRING);
         $user = $app->repo("User")->findOneBy(array('email' => $email));
         $token = filter_var($app->request->get('t'), FILTER_SANITIZE_STRING);
-        
+
         if (!$user) {
             $this->feedback_success = false;
             $this->triedEmail = $email;
             $this->feedback_msg = i::__('Email ou token inválidos', 'multipleLocal');
             return false;
         }
-        
+
         $savedToken = $user->getMetadata('recover_token');
-        
+
         if (!$savedToken || $savedToken != $token) {
             $this->feedback_success = false;
             $this->triedEmail = $email;
@@ -690,59 +690,63 @@ class Provider extends \MapasCulturais\AuthProvider {
         }
 
         $recover_token_time = $user->getMetadata('recover_token_time');
-        
+
         // check if token is still valid
         $now = time();
         $diff = $now - intval($recover_token_time);
-        
+
         if ($diff > 60 * 60 * 24 * 30) {
             $this->feedback_success = false;
             $this->triedEmail = $email;
             $this->feedback_msg = i::__('Este token expirou', 'multipleLocal');
             return false;
         }
-        
-        if (!$this->verifyPassowrds($pass, $pass_v))
+
+        if (!$this->verifyPassowrds($pass, $pass_v)) {
             return false;
-        
+        }
+
         $user->setMetadata(self::$passMetaName, $this->hashPassword($pass));
         $user->setMetadata(Provider::$accountIsActiveMetadata, '1');
-        
+
         $app->disableAccessControl();
-        $user->save(true); 
+        $user->save(true);
         $app->enableAccessControl();
-        
+
         $this->middlewareLoginAttempts(true); //tira o BAN de login do usuario
 
         $this->feedback_success = true;
         $this->triedEmail = $email;
         $this->feedback_msg = i::__('Senha alterada com sucesso! Você pode fazer login agora', 'multipleLocal');
-        
+
         return true;
     }
-    
-    function recover() {
+
+    private function recover(): void
+    {
         $app = App::i();
         $config = $app->_config;
         $email = filter_var($app->request->post('email'), FILTER_SANITIZE_STRING);
         $user = $app->repo("User")->findOneBy(array('email' => $email));
-        
+
         if (!$user) {
             $this->feedback_success = false;
             $this->triedEmail = $email;
             $this->feedback_msg = i::__('Email não encontrado', 'multipleLocal');
-            return false;
+            return;
         }
 
-        if (!$this->verifyRecaptcha2())
-           return $this->setFeedback(i::__('Captcha incorreto, tente novamente !', 'multipleLocal'));
-        
+        if (!$this->verifyRecaptcha2()) {
+            $this->setFeedback(i::__('Captcha incorreto, tente novamente !', 'multipleLocal'));
+            return;
+        }
+
         // generate the hash
         $source = rand(3333, 8888);
         $cut = rand(10, 30);
         $string = $this->hashPassword($source);
         $token = substr($string, $cut, 20);
-        
+
         // save hash and created time
         $app->disableAccessControl();
         $user->setMetadata('recover_token', $token);
@@ -750,46 +754,34 @@ class Provider extends \MapasCulturais\AuthProvider {
         $user->saveMetadata();
         $app->em->flush();
         $app->enableAccessControl();
-        
-        
+
         // build recover URL
         $url = $app->createUrl('auth', 'recover-resetform') . '?t=' . $token;
-        
         $site_name = $app->view->dict('site: name', false);
-        
 
         // send email
         $email_subject = sprintf(i::__('Pedido de recuperação de senha para %s', 'multipleLocal'), $site_name);
-        $mustache = new \Mustache_Engine();
 
-        $content = $mustache->render(
-            file_get_contents(
-                // @todo: usar a $app->view->getTemplatePathname()
-                __DIR__.
-                DIRECTORY_SEPARATOR.'views'.
-                DIRECTORY_SEPARATOR.'auth'.
-                DIRECTORY_SEPARATOR.'email-resert-password.html'
-            ), array(
-                "url" => $url,
-                "user" => $user->email,
-                "siteName" => $site_name,
-                "urlSupportChat" => $this->_config['urlSupportChat'],
-                "urlSupportEmail" => $this->_config['urlSupportEmail'],
-                "urlSupportSite" => $this->_config['urlSupportSite'],
-                "textSupportSite" => $this->_config['textSupportSite'],
-                "urlImageToUseInEmails" => $this->_config['urlImageToUseInEmails'],
-            ));
-        
+        $content = $app->renderMailerTemplate('email-to-reset-password', [
+            "url" => $url,
+            "user" => $user->email,
+            "siteName" => $site_name,
+            "urlSupportChat" => $this->_config['urlSupportChat'],
+            "urlSupportEmail" => $this->_config['urlSupportEmail'],
+            "urlSupportSite" => $this->_config['urlSupportSite'],
+            "textSupportSite" => $this->_config['textSupportSite'],
+            "urlImageToUseInEmails" => $this->_config['urlImageToUseInEmails'],
+        ]);
+
         $app->applyHook('multipleLocalAuth.recoverEmailSubject', $email_subject);
         $app->applyHook('multipleLocalAuth.recoverEmailBody', $content);
-        
+
         if ($app->createAndSendMailMessage([
-                'from' => $app->config['mailer.from'],
-                'to' => $user->email,
-                'subject' => $email_subject,
-                'body' => $content
-            ])) {
-        
+            'from' => $app->config['mailer.from'],
+            'to' => $user->email,
+            'subject' => $email_subject,
+            'body' => $content
+        ])) {
             // set feedback
             $this->feedback_success = true;
             $this->feedback_msg = i::__('Sucesso: Um e-mail foi enviado com instruções para recuperação da senha.', 'multipleLocal');
@@ -1071,12 +1063,10 @@ class Provider extends \MapasCulturais\AuthProvider {
     function doRegister() {
         $app = App::i();
         $config = $app->_config;
-        
 
         if ($this->validateRegisterFields()) {
-            
             $pass = filter_var($app->request->post('password'), FILTER_SANITIZE_STRING);
-            
+
             //retira ". e -" do $request->post('cpf')
             $cpf = filter_var($app->request->post('cpf'), FILTER_SANITIZE_STRING);
             $cpf = str_replace("-","",$cpf);
@@ -1097,56 +1087,46 @@ class Provider extends \MapasCulturais\AuthProvider {
                         'email' => filter_var($app->request->post('email'), FILTER_SANITIZE_EMAIL),
                         'name' => filter_var($app->request->post('name'), FILTER_SANITIZE_STRING),
                         'cpf' => $cpf,
-                        'token' => $token
-                    ]
-                ]
+                        'token' => $token,
+                    ],
+                ],
             ];
 
             //Removendo email em maiusculo
             $response['auth']['uid'] = strtolower($response['auth']['uid']);
             $response['auth']['info']['email'] = strtolower($response['auth']['info']['email']);
-          
+
             $app->applyHookBoundTo($this, 'auth.createUser:before', [$response]);
             $user = $this->_createUser($response);
             $app->applyHookBoundTo($this, 'auth.createUser:after', [$user, $response]);
-
             $baseUrl = $app->getBaseUrl();
-
-            //ATENÇÃO !! Se for necessario "padronizar" os emails com header/footers, é necessario adapatar o 'mustache', e criar uma mini estrutura de pasta de emails em 'MultipleLocalAuth\views'
-            $mustache = new \Mustache_Engine();
 
             $site_name = $app->view->dict('site: name', false);
 
-            $content = $mustache->render(
-                file_get_contents(
-                    __DIR__.
-                    DIRECTORY_SEPARATOR.'views'.
-                    DIRECTORY_SEPARATOR.'auth'.
-                    DIRECTORY_SEPARATOR.'email-to-validate-account.html'
-                ), array(
-                    "siteName" => $site_name,
-                    // @todo não é melhor pegar o $user->profile->name ???
-                    "user" => $response['auth']['info']['name'],
-                    "urlToValidateAccount" =>  $baseUrl.'auth/confirma-email?token='.$token,
-                    "baseUrl" => $baseUrl,
-                    "urlSupportChat" => $this->_config['urlSupportChat'],
-                    "urlSupportEmail" => $this->_config['urlSupportEmail'],
-                    "urlSupportSite" => $this->_config['urlSupportSite'],
-                    "textSupportSite" => $this->_config['textSupportSite'],
-                    "urlImageToUseInEmails" => $this->_config['urlImageToUseInEmails'],
-                ));
+            $content = $app->renderMailerTemplate('email-to-validate-account', [
+                "siteName" => $site_name,
+                // @todo não é melhor pegar o $user->profile->name ???
+                "user" => $response['auth']['info']['name'],
+                "urlToValidateAccount" =>  $baseUrl.'auth/confirma-email?token='.$token,
+                "baseUrl" => $baseUrl,
+                "urlSupportChat" => $this->_config['urlSupportChat'],
+                "urlSupportEmail" => $this->_config['urlSupportEmail'],
+                "urlSupportSite" => $this->_config['urlSupportSite'],
+                "textSupportSite" => $this->_config['textSupportSite'],
+                "urlImageToUseInEmails" => $this->_config['urlImageToUseInEmails'],
+            ]);
 
             $app->createAndSendMailMessage([
                 'from' => $app->config['mailer.from'],
                 'to' => $user->email,
                 'subject' => "Bem-vindo ao ".$site_name,
-                'body' => $content
+                'body' => $content['body']
             ]);
-            
+
             $user->setMetadata(self::$passMetaName, $app->auth->hashPassword( $pass ));
             $user->setMetadata(self::$tokenVerifyAccountMetadata, $token);
             $user->setMetadata(self::$accountIsActiveMetadata, '0');
-            
+
             // save
             $app->disableAccessControl();
             $user->saveMetadata(true);
