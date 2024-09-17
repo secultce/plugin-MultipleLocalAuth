@@ -780,7 +780,7 @@ class Provider extends \MapasCulturais\AuthProvider {
             'from' => $app->config['mailer.from'],
             'to' => $user->email,
             'subject' => $email_subject,
-            'body' => $content
+            'body' => $content['body']
         ])) {
             // set feedback
             $this->feedback_success = true;
