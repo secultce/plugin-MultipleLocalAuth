@@ -14,7 +14,17 @@ class Plugin extends \MapasCulturais\Plugin {
     
     public function _init() {
         $app = App::i();
-        
+        $app->_config['mailer.templates'] = array_merge($app->_config['mailer.templates'], [
+            'email-to-validate-account' => [
+                'title' => 'Email de validação de conta',
+                'template' => 'email-to-validate-account.html',
+            ],
+            'email-to-reset-password' => [
+                'title' => 'Email de recuperação de senha',
+                'template' => 'email-to-reset-password.html',
+            ],
+        ]);
+
         // register translation text domain
         i::load_textdomain( 'multipleLocal', __DIR__ . "/translations" );
         
