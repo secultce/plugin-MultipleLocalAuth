@@ -1022,7 +1022,7 @@ class Provider extends \MapasCulturais\AuthProvider {
         if($config['userMustConfirmEmailToUseTheSystem']) {
 
             if(isset($user) && $accountIsActive === '0' ) {
-                return $this->setFeedback(i::__('Verifique seu email para validar a sua conta', 'multipleLocal'));
+                return $this->setFeedback(i::__('Para reativar sua conta, basta resetar sua senha. Clique em Esqueci a senha e siga as insctruções.', 'multipleLocal'));
             }
 
         }
@@ -1077,6 +1077,7 @@ class Provider extends \MapasCulturais\AuthProvider {
             $cut = rand(10, 30);
             $string = $this->hashPassword($source);
             $token = substr($string, $cut, 20);
+
 
             // Para simplificar, montaremos uma resposta no padrão Oauth
             $response = [

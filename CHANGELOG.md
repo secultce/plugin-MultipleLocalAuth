@@ -7,6 +7,10 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 > [!NOTE]
 > Apenas a partir da versão 2.3.0 deste fork
 
+## [2.3.1] - 2024-11-05
+### Modificado
+- Mensagem de ativação de conta.
+
 ## [2.3.0] - 2024-09-17
 ### Modificado
 - Implementação de renderização de e-mail igual ao da plataforma.
