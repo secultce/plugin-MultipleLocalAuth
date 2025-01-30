@@ -28,7 +28,23 @@ function showStrategy($name, $config) {
 ?>
 
 <?php if (isset($config['google-recaptcha-sitekey'])) : ?>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <script src="<?= 'https://www.google.com/recaptcha/api.js?render=' . $config['google-recaptcha-sitekey'] ?>"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll("form").forEach(function (form) {
+                form.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    
+                    grecaptcha.ready(function () {
+                        grecaptcha.execute("<?= $config['google-recaptcha-sitekey'] ?>", { action: "submit" }).then(function (token) {
+                            form.querySelector(".recaptcha-token").value = token;
+                            form.submit();
+                        });
+                    });
+                });
+            });
+        });
+    </script>
 <?php endif; ?>
 
 <div class="login-area">
@@ -76,9 +92,7 @@ function showStrategy($name, $config) {
                                 <input type="password" id="password" name="password" value="" />
                             </fieldset>
 
-                            <?php if (isset($config['google-recaptcha-sitekey'])) : ?>
-                                <div class="g-recaptcha" data-sitekey="<?php echo $config['google-recaptcha-sitekey']; ?>"></div>
-                            <?php endif; ?>
+                            <input type="hidden" name="g-recaptcha-response" class="recaptcha-token">
 
                             <?php $this->applyTemplateHook("form-login-button", "before");?>
                             <div class="submit-options">
@@ -157,10 +171,7 @@ function showStrategy($name, $config) {
                                 <input autocomplete="off" type="text" id="re-email" name="email" value="" />
                             </fieldset>
 
-
-                            <?php if (isset($config['google-recaptcha-sitekey'])) : ?>
-                                <div class="g-recaptcha" data-sitekey="<?php echo $config['google-recaptcha-sitekey']; ?>"></div>
-                            <?php endif; ?>
+                            <input type="hidden" name="g-recaptcha-response" class="recaptcha-token">
 
                             <input type="submit" value="<?php i::esc_attr_e('Recuperar senha', 'multipleLocal'); ?>" />
                             <a id="multiple-login-recover-cancel" class="multiple-recover-link secondary"><?php i::_e('Cancelar', 'multipleLocal'); ?></a>
@@ -236,9 +247,7 @@ function showStrategy($name, $config) {
                         <input autocomplete="off" id="in-repassword" type="password" name="confirm_password" value="" />
                     </fieldset>
 
-                    <?php if (isset($config['google-recaptcha-sitekey'])) : ?>
-                        <div class="g-recaptcha" data-sitekey="<?php echo $config['google-recaptcha-sitekey']; ?>"></div>
-                    <?php endif; ?>
+                    <input type="hidden" name="g-recaptcha-response" class="recaptcha-token">
 
                     <div class="submit-options">
                         <input type="submit" value="<?php i::esc_attr_e('Criar Conta', 'multipleLocal'); ?>" />
