@@ -447,7 +447,6 @@ class Provider extends \MapasCulturais\AuthProvider {
         $app->contentType('application/json');
         $app->halt($status, json_encode($data));
     }
-    
 
     function verificarToken($token, $claveSecreta)
     {
@@ -458,34 +457,31 @@ class Provider extends \MapasCulturais\AuthProvider {
         ];
         $opciones = array(
             "http" => array(
-            "header" => "Content-type: application/x-www-form-urlencoded\r\n",
-            "method" => "POST",
-            "content" => http_build_query($datos), # Agregar el contenido definido antes
-           ),
+                "header" => "Content-type: application/x-www-form-urlencoded\r\n",
+                "method" => "POST",
+                "content" => http_build_query($datos), # Agregar el contenido definido antes
+            ),
         );
         $contexto = stream_context_create($opciones);
         $resultado = file_get_contents($url, false, $contexto);
-        if ($resultado === false) {
-            return false;
-        }
-        $resultado = json_decode($resultado);
-        $pruebaPasada = $resultado->success;
-        return $pruebaPasada;
+
+        return json_decode($resultado, true);
     }
 
-    function verifyRecaptcha2() {
-        $app = App::i();
-        $config = $this->_config;
-        //$config = $app->config['auth.config'];
-        if (!$config['google-recaptcha-sitekey']) return true;
-        if (empty($_POST["g-recaptcha-response"]))
+    public function verifyRecaptcha3()
+    {
+        $token = $_POST['g-recaptcha-response'];
+
+        if ($token) {
+            $resultado = $this->verificarToken($token, $this->_config['google-recaptcha-secret']);
+
+            // Verifica se o reCAPTCHA foi bem-sucedido e a pontuação
+            if ($resultado['success'] && $resultado['score'] >= 0.5) return true;
+
             return false;
-        $token = $_POST["g-recaptcha-response"];
-        $verificado = $this->verificarToken($token, $config["google-recaptcha-secret"]);
-        if ($verificado)
-            return true;
-        else
-            return false;
+        }
+
+        return false;
     }
 
     function verifyPassowrds($pass, $verify) {
@@ -538,9 +534,9 @@ class Provider extends \MapasCulturais\AuthProvider {
         $this->triedEmail = $email;
         $this->triedName = $name;
 
-        // VALIDO CAPTCHA
-        if (!$this->verifyRecaptcha2())
-           return $this->setFeedback(i::__('Captcha incorreto, tente novamente !', 'multipleLocal'));
+        if (!$this->verifyRecaptcha3()) {
+            return $this->setFeedback(i::__('Usuário suspeito ou score muito baixo.', 'multipleLocal'));
+        }
 
         // validate name
         if (empty($name)){
@@ -736,8 +732,8 @@ class Provider extends \MapasCulturais\AuthProvider {
             return;
         }
 
-        if (!$this->verifyRecaptcha2()) {
-            $this->setFeedback(i::__('Captcha incorreto, tente novamente !', 'multipleLocal'));
+        if (!$this->verifyRecaptcha3()) {
+            $this->setFeedback(i::__('Usuário suspeito ou score muito baixo.', 'multipleLocal'));
             return;
         }
 
@@ -931,8 +927,9 @@ class Provider extends \MapasCulturais\AuthProvider {
         $app = App::i();
         $config = $this->_config;
 
-        if (!$this->verifyRecaptcha2())
-           return $this->setFeedback(i::__('Captcha incorreto, tente novamente !', 'multipleLocal'));
+        if (!$this->verifyRecaptcha3()) {
+            return $this->setFeedback(i::__('Usuário suspeito ou score muito baixo.', 'multipleLocal'));
+        }
 
         $email = filter_var($app->request->post('email'), FILTER_SANITIZE_EMAIL);
         $emailToCheck = $email;
