@@ -535,7 +535,7 @@ class Provider extends \MapasCulturais\AuthProvider {
         $this->triedName = $name;
 
         if (!$this->verifyRecaptcha3()) {
-            return $this->setFeedback(i::__('Usuário suspeito ou score muito baixo.', 'multipleLocal'));
+            return $this->setFeedback(i::__('Erro no ReCAPTCHA: Usuário suspeito ou score muito baixo.', 'multipleLocal'));
         }
 
         // validate name
@@ -733,7 +733,7 @@ class Provider extends \MapasCulturais\AuthProvider {
         }
 
         if (!$this->verifyRecaptcha3()) {
-            $this->setFeedback(i::__('Usuário suspeito ou score muito baixo.', 'multipleLocal'));
+            $this->setFeedback(i::__('Erro no ReCAPTCHA: Usuário suspeito ou score muito baixo.', 'multipleLocal'));
             return;
         }
 
@@ -928,7 +928,7 @@ class Provider extends \MapasCulturais\AuthProvider {
         $config = $this->_config;
 
         if (!$this->verifyRecaptcha3()) {
-            return $this->setFeedback(i::__('Usuário suspeito ou score muito baixo.', 'multipleLocal'));
+            return $this->setFeedback(i::__('Erro no ReCAPTCHA: Usuário suspeito ou score muito baixo.', 'multipleLocal'));
         }
 
         $email = filter_var($app->request->post('email'), FILTER_SANITIZE_EMAIL);
